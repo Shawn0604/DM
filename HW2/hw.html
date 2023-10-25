@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>餐廳推薦系統</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #6797ca; /* 標題顏色設定為藍色 */
+        }
+
+        .input-container {
+            text-align: center;
+        }
+
+        label {
+            font-weight: bold;
+            width: 200px;
+        }
+
+        input[type="text"] {
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            display: block; /* 設置按鈕為塊元素，以實現置中 */
+            padding: 10px 20px;
+            background-color: #6797ca;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px auto; /* 使用auto來水平置中 */
+        }
+
+        button:hover {
+            background-color: #6797ca;
+        }
+
+        #recommendations {
+            margin: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>餐廳推薦系統</h1>
+    <div class="input-container">
+        <label for="customerId">輸入客戶ID：</label>
+        <input type="text" id="customerId" name="customerId">
+    </div>
+    <button onclick="recommendRestaurant()">提交</button>
+    <div id="recommendations"></div>
+
+    <script>
+        function recommendRestaurant() {
+            // 獲取 customerId
+            var customerId = document.getElementById("customerId").value;
+            if (/^c[1-9]$/.test(customerId)) {
+                // 定義 API 呼叫的內容
+                var apiEndpoint = "https://ntnu-ml.openai.azure.com/openai/deployments/ntnu-ml-gpt4-32k/chat/completions?api-version=2023-07-01-preview";
+                var apiKey = "bee231739ced4d8887d726f6344ae22a"; // Azure OpenAI API 金鑰
+                var requestData = {
+                    messages: [
+                        {
+                            role: "system",
+                            content: "根據```中提供的 rating.csv 資料，用協同過濾的概念推薦餐廳給使用者，請以 json array 格式回答\n```\ncustomerId,restaurantId,rating\nc1,r2,3\nc1,r3,1\nc1,r5,3\nc1,r6,2\nc2,r1,3\nc2,r3,1\nc2,r5,1\nc2,r6,1\nc3,r4,3\nc3,r5,3\nc3,r6,3\nc4,r1,1\nc4,r4,1\nc4,r5,3\nc5,r2,1\nc5,r3,2\nc5,r4,3\nc6,r2,3\nc6,r3,3\nc6,r5,3\nc7,r2,3\nc7,r3,3\nc7,r4,1\nc8,r1,2\nc8,r2,1\nc8,r5,1\nc8,r6,2\n```"
+                        },
+                        {
+                            role: "user",
+                            content: customerId
+                        },
+                        {
+                            role: "system",
+                            content: "根據customerId，請為該客戶推薦餐廳，內容只需包含restaurantId和rating，像是```中的格式，```\n[\n  {\"restaurantId\": \"r1\", \"rating\": 2.5},\n  {\"restaurantId\": \"r4\", \"rating\": 2.0} ]```"
+                        }
+                    ],
+                    max_tokens: 800,
+                    temperature: 0.5,
+                    frequency_penalty: 0,
+                    presence_penalty: 0,
+                    top_p: 0.95,
+                    stop: null
+                };
+
+                // 進行 API 呼叫
+                fetch(apiEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'api-key': apiKey
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data.choices[0]);
+                        // 使用正則表達式提取餐廳 ID 和評分
+                        var regex = /{"restaurantId": "r\w+", "rating": \d+(\.\d{1,})?}/g;
+                        var matches = data.choices[0].message.content.match(regex);
+
+                        if (matches) {
+                            var recommendationsElement = document.getElementById("recommendations");
+                            recommendationsElement.innerHTML = ''; // Clear previous recommendations
+
+                            var restaurantData = matches.map(function (match) {
+                                var idMatch = /"restaurantId": "(r\w+)"/.exec(match);
+                                var ratingMatch = /"rating": (\d+(\.\d+)?)/.exec(match);
+
+                                if (idMatch && ratingMatch) {
+                                    var restaurantId = idMatch[1]; // Extract restaurant ID
+                                    var rating = parseFloat(ratingMatch[1]); // Extract rating, including both integer and decimal formats
+
+                                    return '餐廳ID: ' + restaurantId + ', 評分: ' + rating.toFixed(1);
+                                }
+                            });
+
+                            // 過濾掉未匹配的值
+                            restaurantData = restaurantData.filter(function (value) {
+                                return value !== undefined;
+                            });
+
+                            if (restaurantData.length > 0) {
+                                // 顯示餐廳推薦
+                                var recommendationsElement = document.getElementById("recommendations");
+                                recommendationsElement.innerHTML = "推薦的餐廳 ID 和評分：" + restaurantData.join(", ");
+                            } else {
+                                // 如果沒有符合條件的推薦，顯示錯誤消息
+                                var recommendationsElement = document.getElementById("recommendations");
+                                recommendationsElement.innerHTML = "找不到符合條件的餐廳。";
+                            }
+                        } else {
+                            // 如果找不到匹配，顯示錯誤消息
+                            var recommendationsElement = document.getElementById("recommendations");
+                            recommendationsElement.innerHTML = "找不到相應數據。";
+                        }
+                    })
+                    .catch(error => {
+                        console.error('API 呼叫出錯：', error);
+                    });
+            } else {
+                var recommendationsElement = document.getElementById("recommendations");
+                recommendationsElement.innerHTML = "請輸入有效的客戶ID（c1-c9之間）。";
+            }
+        }
+    </script>
+</body>
+
+</html>
+
