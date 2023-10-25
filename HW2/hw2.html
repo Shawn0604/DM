@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>餐廳推薦系統</title>
     <style>
@@ -10,49 +9,41 @@
             margin: 0;
             padding: 0;
         }
-
         h1 {
             text-align: center;
-            color: #6797ca; /* 標題顏色設定為藍色 */
+            color: #6797ca; 
         }
-
         .input-container {
             text-align: center;
         }
-
         label {
             font-weight: bold;
             width: 200px;
         }
-
         input[type="text"] {
             padding: 5px;
             border: 1px solid #ccc;
             border-radius: 4px;
         }
-
         button {
-            display: block; /* 設置按鈕為塊元素，以實現置中 */
+            display: block; 
             padding: 10px 20px;
             background-color: #6797ca;
             color: #fff;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            margin: 10px auto; /* 使用auto來水平置中 */
+            margin: 10px auto; 
         }
-
         button:hover {
             background-color: #6797ca;
         }
-
         #recommendations {
             margin: 20px;
             text-align: center;
         }
     </style>
 </head>
-
 <body>
     <h1>餐廳推薦系統</h1>
     <div class="input-container">
@@ -61,15 +52,12 @@
     </div>
     <button onclick="recommendRestaurant()">提交</button>
     <div id="recommendations"></div>
-
     <script>
         function recommendRestaurant() {
-            // 獲取 customerId
             var customerId = document.getElementById("customerId").value;
-            if (/^c[1-9]$/.test(customerId)) {
-                // 定義 API 呼叫的內容
+            if (/^c[1-5]$/.test(customerId)) {
                 var apiEndpoint = "https://ntnu-ml.openai.azure.com/openai/deployments/ntnu-ml-gpt4-32k/chat/completions?api-version=2023-07-01-preview";
-                var apiKey = "api key"; // Azure OpenAI API 金鑰
+                var apiKey = "api key";
                 var requestData = {
                     messages: [
                         {
@@ -85,15 +73,13 @@
                             content: "根據customerId，請為該客戶推薦餐廳，內容只需包含restaurantId和rating，像是```中的格式，```\n[\n  {\"restaurantId\": \"r1\", \"rating\": 2.5},\n  {\"restaurantId\": \"r4\", \"rating\": 2.0} ]```"
                         }
                     ],
-                    max_tokens: 800,
+                    max_tokens: 750,
                     temperature: 0.5,
                     frequency_penalty: 0,
                     presence_penalty: 0,
                     top_p: 0.95,
                     stop: null
                 };
-
-                // 進行 API 呼叫
                 fetch(apiEndpoint, {
                     method: 'POST',
                     headers: {
@@ -105,42 +91,37 @@
                     .then(response => response.json())
                     .then(data => {
                         console.log(data.choices[0]);
-                        // 使用正則表達式提取餐廳 ID 和評分
                         var regex = /{"restaurantId": "r\w+", "rating": \d+(\.\d{1,})?}/g;
                         var matches = data.choices[0].message.content.match(regex);
 
                         if (matches) {
                             var recommendationsElement = document.getElementById("recommendations");
-                            recommendationsElement.innerHTML = ''; // Clear previous recommendations
+                            recommendationsElement.innerHTML = ''; 
 
                             var restaurantData = matches.map(function (match) {
                                 var idMatch = /"restaurantId": "(r\w+)"/.exec(match);
                                 var ratingMatch = /"rating": (\d+(\.\d+)?)/.exec(match);
 
                                 if (idMatch && ratingMatch) {
-                                    var restaurantId = idMatch[1]; // Extract restaurant ID
-                                    var rating = parseFloat(ratingMatch[1]); // Extract rating, including both integer and decimal formats
+                                    var restaurantId = idMatch[1]; 
+                                    var rating = parseFloat(ratingMatch[1]); 
 
                                     return '餐廳ID: ' + restaurantId + ', 評分: ' + rating.toFixed(1);
                                 }
                             });
-
-                            // 過濾掉未匹配的值
                             restaurantData = restaurantData.filter(function (value) {
                                 return value !== undefined;
                             });
 
                             if (restaurantData.length > 0) {
-                                // 顯示餐廳推薦
+
                                 var recommendationsElement = document.getElementById("recommendations");
                                 recommendationsElement.innerHTML = "推薦的餐廳 ID 和評分：" + restaurantData.join(", ");
                             } else {
-                                // 如果沒有符合條件的推薦，顯示錯誤消息
                                 var recommendationsElement = document.getElementById("recommendations");
                                 recommendationsElement.innerHTML = "找不到符合條件的餐廳。";
                             }
                         } else {
-                            // 如果找不到匹配，顯示錯誤消息
                             var recommendationsElement = document.getElementById("recommendations");
                             recommendationsElement.innerHTML = "找不到相應數據。";
                         }
